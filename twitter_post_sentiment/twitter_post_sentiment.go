@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/chromedp"
@@ -22,6 +23,10 @@ type Tweet struct {
 	NeutralSentiment  float64 `json:"neutral_sentiment"`
 }
 
+const queryName = "div[data-testid='User-Name'] > div:nth-child(1) > div > a > div > div:nth-child(1) > span > span"
+const queryUsername = "div[data-testid='User-Name'] > div:nth-child(2) > div > div > a > div > span"
+const queryTweet = "body div[data-testid='tweetText']"
+
 func waitVisible(ctx context.Context, testId string) {
 	fmt.Printf("Wait to query %s visible...\n", testId)
 	if err := chromedp.Run(ctx, chromedp.WaitVisible(fmt.Sprintf("div[data-testid='%s']", testId))); err != nil {
@@ -30,24 +35,7 @@ func waitVisible(ctx context.Context, testId string) {
 	fmt.Printf("%s is visible", testId)
 }
 
-func ScrapeTwitterPostSentiment(url string) {
-	var tweet Tweet
-
-	ctx, cf := chromedp.NewContext(context.Background())
-	defer cf()
-
-	if err := chromedp.Run(ctx, chromedp.Navigate(url)); err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Navigated to page", url)
-
-	queryName := "div[data-testid='User-Name'] > div:nth-child(1) > div > a > div > div:nth-child(1) > span > span"
-	queryUsername := "div[data-testid='User-Name'] > div:nth-child(2) > div > div > a > div > span"
-	queryTweet := "div[data-testid='tweetText'] > span"
-
-	waitVisible(ctx, "User-Name")
-	waitVisible(ctx, "tweetText")
-
+func retrieveTweet(ctx context.Context, tweet *Tweet) *Tweet {
 	fmt.Println("Getting the name")
 	if err := chromedp.Run(ctx, chromedp.Text(
 		queryName,
@@ -74,12 +62,36 @@ func ScrapeTwitterPostSentiment(url string) {
 		log.Fatal(err)
 	}
 
+	fmt.Println(len(tweetTextNodes))
 	var tweetTexts []string
 	for _, textNode := range tweetTextNodes {
 		tweetTexts = append(tweetTexts, textNode.Children[0].NodeValue)
 	}
 
 	tweet.Message = strings.Join(tweetTexts, "")
+
+	return tweet
+}
+
+func ScrapeTwitterPostSentiment(url string) {
+	// var tweets []Tweet
+	var tweet Tweet
+
+	ctx, cf := chromedp.NewContext(context.Background())
+	defer cf()
+
+	ctx, cf = context.WithTimeout(ctx, 30*time.Second)
+	defer cf()
+
+	if err := chromedp.Run(ctx, chromedp.Navigate(url)); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Navigated to page", url)
+
+	waitVisible(ctx, "User-Name")
+	waitVisible(ctx, "tweetText")
+
+	retrieveTweet(ctx, &tweet)
 
 	analyzer := govader.NewSentimentIntensityAnalyzer()
 	sentiment := analyzer.PolarityScores(tweet.Message)
