@@ -22,6 +22,14 @@ type Tweet struct {
 	NeutralSentiment  float64 `json:"neutral_sentiment"`
 }
 
+func waitVisible(ctx context.Context, testId string) {
+	fmt.Printf("Wait to query %s visible...\n", testId)
+	if err := chromedp.Run(ctx, chromedp.WaitVisible(fmt.Sprintf("div[data-testid='%s']", testId))); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("%s is visible", testId)
+}
+
 func ScrapeTwitterPostSentiment(url string) {
 	var tweet Tweet
 
@@ -37,17 +45,8 @@ func ScrapeTwitterPostSentiment(url string) {
 	queryUsername := "div[data-testid='User-Name'] > div:nth-child(2) > div > div > a > div > span"
 	queryTweet := "div[data-testid='tweetText'] > span"
 
-	fmt.Println("Wait to query User-Name visible...")
-	if err := chromedp.Run(ctx, chromedp.WaitVisible("div[data-testid='User-Name']")); err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("User-Name is visible")
-
-	fmt.Println("Wait to query tweetText visible...")
-	if err := chromedp.Run(ctx, chromedp.WaitVisible("div[data-testid='tweetText']")); err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("tweetText is visible")
+	waitVisible(ctx, "User-Name")
+	waitVisible(ctx, "tweetText")
 
 	fmt.Println("Getting the name")
 	if err := chromedp.Run(ctx, chromedp.Text(
