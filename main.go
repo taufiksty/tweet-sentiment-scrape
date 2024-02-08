@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"time"
 
@@ -10,7 +11,15 @@ import (
 func main() {
 	startTime := time.Now()
 
-	twitterpostsentiment.ScrapeTwitterPostSentiment("https://twitter.com/taylorswift13/status/1734927366378439057")
+	url := flag.String("url", "", "url tweet post to scrape")
+	if url == nil {
+		fmt.Println("url is required")
+		return
+	}
+
+	flag.Parse()
+
+	twitterpostsentiment.ScrapeTwitterPostSentiment(*url)
 
 	endTime := time.Now()
 	duration := endTime.Sub(startTime)
